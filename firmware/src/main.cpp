@@ -23,11 +23,11 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.5.0"
+#define FW_VERSION      "rnk-runtime-0.5.1"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
-#define SLEEP_AFTER_MS  20000UL     // extinction après inactivité, sur batterie uniquement
+#define SLEEP_AFTER_MS  30000UL     // extinction après inactivité, sur batterie uniquement
 #define RX_TIMEOUT_MS   8000UL
 #define MAX_PAGES       16
 #define SVC_UUID        "52a10001-8f4b-4c1e-9d6b-2f5a7c3e1b00"
@@ -996,8 +996,9 @@ void loop() {
     lastSec = D.second; lastMin = D.minute; lastBatt = D.batt; lastPage = curPage; dirty = false;
   }
 
-#if AUTO_SLEEP
-  if (!D.usb && rx == RX_IDLE && millis() - lastActivity > SLEEP_AFTER_MS) goSleep();
-#endif
+  // extinction automatique de l'écran sur batterie (réveil au toucher ou au bouton), sans veille profonde du processeur
+  if (!D.usb && rx == RX_IDLE && !screenOff && millis() - lastActivity > SLEEP_AFTER_MS) {
+    screenOff = true; ttgo->closeBL(); ttgo->displaySleep();
+  }
   delay(4);
 }

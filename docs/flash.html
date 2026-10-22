@@ -8,7 +8,7 @@ h1{font-size:22px;letter-spacing:.04em;text-transform:uppercase}li{margin:8px 0}
 esp-web-install-button button{background:#c2383d;color:#fff;border:0;border-radius:8px;padding:12px 20px;font-size:16px;cursor:pointer}
 </style></head><body>
 <h1>Installer le firmware RNK</h1>
-<p style="opacity:.7">Version proposée : 0.5.0</p>
+<p style="opacity:.7">Version proposée : 0.5.1</p>
 <div class="box">
 <ol>
 <li>Utilise <b>Chrome ou Edge sur ordinateur</b>.</li>
@@ -16,12 +16,12 @@ esp-web-install-button button{background:#c2383d;color:#fff;border:0;border-radi
 <li>Clique sur le bouton, choisis le port de la montre (nom avec USB, CP210x ou CH340), puis <b>Installer</b>.</li>
 <li>Attends la fin (quelques minutes). Ne débranche pas.</li>
 </ol>
-<esp-web-install-button manifest="firmware/manifest.json?v=0.5.0"><button slot="activate">Installer sur la montre</button><span slot="unsupported">Ce navigateur ne gère pas l'USB : utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button>
+<esp-web-install-button manifest="firmware/manifest.json?v=0.5.1"><button slot="activate">Installer sur la montre</button><span slot="unsupported">Ce navigateur ne gère pas l'USB : utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button>
 </div>
 <div class="box"><b>Test de la montre</b><p>Si la montre reste noire, installe ce programme de test : l'écran doit devenir rouge avec « DIAG OK » et un compteur.</p>
-<esp-web-install-button manifest="firmware/manifest-diag.json?v=0.5.0"><button slot="activate">Installer le programme de test</button><span slot="unsupported">Utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button></div>
+<esp-web-install-button manifest="firmware/manifest-diag.json?v=0.5.1"><button slot="activate">Installer le programme de test</button><span slot="unsupported">Utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button></div>
 <p>Ensuite, ouvre <a href="index.html">l'Atelier</a> pour envoyer un cadran.</p>
 <p id="st"></p>
 <script type="module" src="https://unpkg.com/esp-web-tools@10.0.1/dist/web/install-button.js?module"></script>
-<script>fetch('firmware/manifest.json?v=0.5.0',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0}).catch(function(){document.getElementById('st').textContent='Le firmware n’est pas encore compilé : regarde l’onglet Actions du dépôt, ou réessaie dans quelques minutes.'})</script>
+<script>fetch('firmware/manifest.json?v=0.5.1',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0}).catch(function(){document.getElementById('st').textContent='Le firmware n’est pas encore compilé : regarde l’onglet Actions du dépôt, ou réessaie dans quelques minutes.'})</script>
 </body></html>

@@ -52,10 +52,10 @@ jobs:
         run: |
           mkdir -p docs/firmware
           if [ -f docs/firmware/rnk-runtime.bin ]; then
-            echo '{"name":"RNK Runtime","version":"0.5.0","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"rnk-runtime.bin?v=0.5.0","offset":0}]}]}' > docs/firmware/manifest.json
+            echo '{"name":"RNK Runtime","version":"0.5.1","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"rnk-runtime.bin?v=0.5.1","offset":0}]}]}' > docs/firmware/manifest.json
           fi
           if [ -f docs/firmware/diag.bin ]; then
-            echo '{"name":"RNK Test","version":"diag","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"diag.bin?v=0.5.0","offset":0}]}]}' > docs/firmware/manifest-diag.json
+            echo '{"name":"RNK Test","version":"diag","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"diag.bin?v=0.5.1","offset":0}]}]}' > docs/firmware/manifest-diag.json
           else
             echo "Compilation du firmware échouée : pas de page d'installation."
           fi
