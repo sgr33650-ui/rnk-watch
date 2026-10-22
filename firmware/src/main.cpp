@@ -584,7 +584,7 @@ static bool loadLayout(const uint8_t *buf, size_t len) {
   return true;
 }
 static bool loadFromFlash() {
-  File f = SPIFFS.open(LAYOUT_PATH, "r");
+  fs::File f = SPIFFS.open(LAYOUT_PATH, "r");
   if (!f) return false;
   size_t n = f.size();
   if (n == 0 || n > MAX_LAYOUT) { f.close(); return false; }
@@ -649,7 +649,7 @@ static void finishReceive() {
   uint32_t c = crc32Calc(rxBuf, rxLen);
   if (c != rxCrc) { Serial.println("RNK:ERR crc"); rxReset(); return; }
   if (!loadLayout(rxBuf, rxLen)) { Serial.println("RNK:ERR json"); rxReset(); return; }
-  File f = SPIFFS.open(LAYOUT_PATH, "w");
+  fs::File f = SPIFFS.open(LAYOUT_PATH, "w");
   if (f) { f.write(rxBuf, rxLen); f.close(); }
   Serial.printf("RNK:OK %d\n", pageCount);
   rxReset();
