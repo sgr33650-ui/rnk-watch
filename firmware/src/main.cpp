@@ -23,7 +23,7 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.3.2"
+#define FW_VERSION      "rnk-runtime-0.4.0"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
@@ -62,6 +62,10 @@ int pageCount = 0;
 int curPage = 0;
 int lastCadran = 0;
 bool pageLive[MAX_PAGES];
+TFT_eSprite *bgSpr = nullptr;   // fond statique mis en cache (fluidité)
+bool bgOk = false;
+int bgIdx = -1;
+int bgPrefix = 0;
 bool pageAnim[MAX_PAGES];   // page avec une image dont la couleur change : redessin rapide
 bool dirty = true;
 uint8_t brightness = 160;
@@ -537,11 +541,36 @@ static void drawElement(JsonObject e, const Theme &t, JsonObject page) {
   }
 }
 
+static bool isDynEl(JsonObject e) {
+  const char *ty = e["type"] | "";
+  if (!strcmp(ty, "needle") || !strcmp(ty, "counter") || !strcmp(ty, "battery") || !strcmp(ty, "crypto") || !strcmp(ty, "wave")) return true;
+  if (!strcmp(ty, "text")) { const char *b = e["bind"] | "texte"; return strcmp(b, "texte") != 0 && b[0]; }
+  if (!strcmp(ty, "bar")) return strcmp(e["bindv"] | "fixe", "fixe") != 0;
+  if (!strcmp(ty, "image")) return strcmp(e["tint"] | "none", "none") && strcmp(e["anim"] | "fixe", "fixe");
+  return false;
+}
 static void renderPage(int idx) {
   JsonObject page = pages[idx];
   Theme t = loadTheme(page);
-  spr->fillSprite(t.bg);
-  for (JsonObject e : page["elements"].as<JsonArray>()) drawElement(e, t, page);
+  JsonArray els = page["elements"].as<JsonArray>();
+  if (bgOk) {
+    if (bgIdx != idx) {
+      // les éléments fixes du début de la page sont dessinés une seule fois dans un fond mis en cache
+      TFT_eSprite *real = spr;
+      spr = bgSpr;
+      spr->fillSprite(t.bg);
+      int n = 0;
+      for (JsonObject e : els) { if (isDynEl(e)) break; drawElement(e, t, page); n++; }
+      spr = real;
+      bgIdx = idx; bgPrefix = n;
+    }
+    memcpy(spr->getPointer(), bgSpr->getPointer(), 240 * 240 * 2);
+    int i = 0;
+    for (JsonObject e : els) { if (i++ < bgPrefix) continue; drawElement(e, t, page); }
+  } else {
+    spr->fillSprite(t.bg);
+    for (JsonObject e : els) drawElement(e, t, page);
+  }
   spr->pushSprite(0, 0);
 }
 
@@ -565,6 +594,7 @@ static bool loadLayout(const uint8_t *buf, size_t len) {
     return false;
   }
   imgFlush();
+  bgIdx = -1;
   if (docPtr) delete docPtr;
   docPtr = d;
   pages = (*docPtr)["pages"].as<JsonArray>();
@@ -817,14 +847,22 @@ static void onTap(int x, int y) {
 }
 static bool touching = false;
 static int tx0, ty0, tx1, ty1;
-static unsigned long tUp = 0;
+static unsigned long tUp = 0, tStart = 0;
+static bool longDone = false;
+static int homePage() {
+  for (int i = 0; i < pageCount; i++) if (!strcmp(pages[i]["kind"] | "", "cadran")) return i;
+  return 0;
+}
 static void pollTouch() {
   int16_t x, y;
   if (digitalRead(TOUCH_INT) == LOW && ttgo->getTouch(x, y)) {
-    if (!touching) { touching = true; tx0 = x; ty0 = y; }
+    if (!touching) { touching = true; tx0 = x; ty0 = y; tStart = millis(); longDone = false; }
     tx1 = x; ty1 = y; tUp = millis(); lastActivity = millis();
+    // appui long (sans bouger) : retour au cadran d'accueil
+    if (!longDone && millis() - tStart > 900 && abs(tx1 - tx0) < 15 && abs(ty1 - ty0) < 15) { longDone = true; gotoPage(homePage()); }
   } else if (touching && millis() - tUp > 80) {
     touching = false;
+    if (longDone) return;
     int dx = tx1 - tx0, dy = ty1 - ty0;
     if (abs(dx) > 50 && abs(dy) < 70) {
       if (dx > 0) { if (!strcmp(pages[curPage]["kind"] | "", "appli")) gotoPage(lastCadran); else nextCadran(); }
@@ -879,6 +917,9 @@ void setup() {
   spr = new TFT_eSprite(ttgo->tft);
   spr->setColorDepth(16);
   spr->createSprite(240, 240);
+  bgSpr = new TFT_eSprite(ttgo->tft);
+  bgSpr->setColorDepth(16);
+  bgOk = bgSpr->createSprite(240, 240) != nullptr;
   Serial.printf("RNK:BOOT 3 ecran heap=%u\n", ESP.getFreeHeap());
 
   if (!SPIFFS.begin(false)) {
@@ -935,5 +976,5 @@ void loop() {
 #if AUTO_SLEEP
   if (!D.usb && rx == RX_IDLE && millis() - lastActivity > SLEEP_AFTER_MS) goSleep();
 #endif
-  delay(20);
+  delay(4);
 }
