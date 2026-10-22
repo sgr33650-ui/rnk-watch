@@ -23,7 +23,7 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.3.1"
+#define FW_VERSION      "rnk-runtime-0.3.2"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
@@ -881,7 +881,16 @@ void setup() {
   spr->createSprite(240, 240);
   Serial.printf("RNK:BOOT 3 ecran heap=%u\n", ESP.getFreeHeap());
 
-  SPIFFS.begin(true);
+  if (!SPIFFS.begin(false)) {
+    // premier démarrage : la zone de stockage doit être préparée (quelques secondes)
+    ttgo->tft->fillScreen(TFT_BLACK);
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+    ttgo->tft->setTextSize(2);
+    ttgo->tft->setCursor(20, 100);
+    ttgo->tft->print("Preparation...");
+    Serial.println("RNK:BOOT 3b formatage");
+    SPIFFS.begin(true);
+  }
   if (!loadFromFlash()) Serial.println("RNK:INFO aucun layout en memoire");
   readClock();
   D.batt = ttgo->power->getBattPercentage();
