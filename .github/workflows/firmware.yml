@@ -1,0 +1,30 @@
+name: Compiler le firmware
+on:
+  push:
+    paths: ['firmware/**', '.github/workflows/firmware.yml']
+  workflow_dispatch:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio
+      - name: Compiler
+        working-directory: firmware
+        run: pio run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rnk-runtime-firmware
+          path: firmware/.pio/build/twatch2020v3/firmware.bin
+      - name: Joindre à la release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" firmware/.pio/build/twatch2020v3/firmware.bin --clobber

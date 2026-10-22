@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RNK Compagnon</title>
+<style>
+:root{--bg:#121315;--panel:#1a1b1e;--raise:#232529;--line:#2f3135;--fg:#e8e4da;--dim:#8f8c84;--brand:#c2383d;--ok:#5fa77a;--warn:#d9a441;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));padding-top:calc(16px + env(safe-area-inset-top,0px));max-width:560px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:.04em;text-transform:uppercase}
+h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 10px;font-weight:600}
+p{margin:0 0 10px;color:var(--dim)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+button{font:inherit;color:inherit;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-height:44px}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button[disabled]{opacity:.45}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.k{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+.k b{display:block;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.1}
+.k span{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#555;margin-right:8px}
+.dot.on{background:var(--ok)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td{padding:6px 4px;border-top:1px solid var(--line)}
+td:last-child{text-align:right}
+.up{color:#6bbf86}.down{color:#d9645f}
+input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--fg);font:inherit}
+#log{background:#0c0d0e;border:1px solid var(--line);border-radius:8px;font:12px/1.4 ui-monospace,Menlo,monospace;padding:8px;height:150px;overflow:auto;white-space:pre-wrap;color:#b9b6ad}
+.warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<h1>RNK Compagnon</h1>
+<p>Envoie à la montre la vitesse, la distance, les cryptos et l'heure par Bluetooth.</p>
+<p class="warn" id="support" hidden></p>
+
+<section>
+  <h2>Montre</h2>
+  <p><span class="dot" id="dot"></span><span id="state">Non connectée</span></p>
+  <div class="row">
+    <button class="primary" id="bConnect">Connecter la montre</button>
+    <button id="bTime" disabled>Régler l'heure</button>
+    <button id="bDisc" disabled>Déconnecter</button>
+  </div>
+</section>
+
+<section>
+  <h2>Activité (GPS du téléphone)</h2>
+  <div class="grid">
+    <div class="k"><span>Vitesse km/h</span><b id="vSpeed">0</b></div>
+    <div class="k"><span>Distance km</span><b id="vKm">0.0</b></div>
+    <div class="k"><span>Durée</span><b id="vDur">00:00</b></div>
+    <div class="k"><span>Moyenne km/h</span><b id="vAvg">0.0</b></div>
+  </div>
+  <div class="row">
+    <button class="primary" id="bStart">Démarrer</button>
+    <button id="bReset">Remettre à zéro</button>
+  </div>
+  <p id="gpsMsg" style="margin-top:8px"></p>
+</section>
+
+<section>
+  <h2>Cryptos (prix en dollars, CoinGecko)</h2>
+  <label for="syms" style="font-size:13px;color:var(--dim)">Symboles, séparés par une virgule (3 maximum affichés sur le cadran d'origine)</label>
+  <div class="row" style="margin:6px 0 10px"><input type="text" id="syms" value="BTC,ETH,XRP" style="flex:1"><button id="bCrypto">Actualiser</button></div>
+  <table id="cryTable"></table>
+  <p id="cryMsg" style="margin-top:8px"></p>
+</section>
+
+<section>
+  <h2>Journal</h2>
+  <div id="log" role="log" aria-live="polite"></div>
+</section>
+
+<script>
+'use strict';
+var SVC='52a10001-8f4b-4c1e-9d6b-2f5a7c3e1b00', RXU='52a10002-8f4b-4c1e-9d6b-2f5a7c3e1b00', TXU='52a10003-8f4b-4c1e-9d6b-2f5a7c3e1b00';
+var IDS={BTC:'bitcoin',ETH:'ethereum',XRP:'ripple',SOL:'solana',DOGE:'dogecoin',ADA:'cardano',BNB:'binancecoin',LTC:'litecoin',TRX:'tron',AVAX:'avalanche-2'};
+var $=function(s){return document.querySelector(s)};
+var dev=null, rx=null, tx=null, queue=Promise.resolve(), manual=false, retryT=null;
+var A={run:false,distM:0,activeMs:0,since:0,last:null,speed:0,watch:null};
+var prices=[];
+
+function log(m){var l=$('#log');l.textContent+=(l.textContent?'\n':'')+new Date().toLocaleTimeString('fr-FR')+'  '+m;l.scrollTop=l.scrollHeight}
+function setState(on,t){$('#dot').className='dot'+(on?' on':'');$('#state').textContent=t;$('#bTime').disabled=!on;$('#bDisc').disabled=!on&&!dev}
+
+if(!navigator.bluetooth){var s=$('#support');s.hidden=false;s.textContent='Ce navigateur ne gère pas le Bluetooth web. Utilise Chrome sur Android ou sur ordinateur, avec une page en https. L’iPhone n’est pas pris en charge.'}
+
+/* ---------- Bluetooth ---------- */
+function send(line){
+  if(!rx)return Promise.resolve();
+  var bytes=new TextEncoder().encode(line+'\n');
+  queue=queue.then(async function(){
+    for(var i=0;i<bytes.length;i+=20){
+      var part=bytes.slice(i,i+20);
+      if(rx.writeValueWithoutResponse)await rx.writeValueWithoutResponse(part);else await rx.writeValue(part);
+    }
+  }).catch(function(e){log('Envoi impossible : '+e.message)});
+  return queue;
+}
+async function attach(){
+  var srv=await dev.gatt.connect();
+  var svc=await srv.getPrimaryService(SVC);
+  rx=await svc.getCharacteristic(RXU);
+  tx=await svc.getCharacteristic(TXU);
+  await tx.startNotifications();
+  tx.addEventListener('characteristicvaluechanged',function(e){
+    var t=new TextDecoder().decode(e.target.value).trim();
+    if(t.indexOf('E|')===0)onWatchEvent(t.slice(2));else log('Montre : '+t);
+  });
+  setState(true,'Connectée à '+(dev.name||'la montre'));log('Connectée.');
+  syncTime();sendCrypto();
+}
+async function connect(){
+  try{
+    manual=false;
+    dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});
+    dev.addEventListener('gattserverdisconnected',onDrop);
+    setState(false,'Connexion…');
+    await attach();
+  }catch(e){setState(false,'Non connectée');log(e.name==='NotFoundError'?'Aucune montre choisie.':'Connexion impossible : '+e.message)}
+}
+function onDrop(){
+  rx=null;tx=null;setState(false,'Connexion perdue, nouvel essai…');log('Connexion perdue.');
+  if(manual)return;
+  clearTimeout(retryT);
+  var tries=0;
+  (function again(){
+    if(manual||!dev)return;
+    attach().catch(function(){tries++;if(tries<40)retryT=setTimeout(again,4000);else{setState(false,'Non connectée');log('Montre introuvable.')}});
+  })();
+}
+function disconnect(){manual=true;clearTimeout(retryT);if(dev&&dev.gatt.connected)dev.gatt.disconnect();dev=null;rx=null;tx=null;setState(false,'Non connectée')}
+function syncTime(){var d=new Date();send('T|'+[d.getFullYear(),d.getMonth()+1,d.getDate(),d.getHours(),d.getMinutes(),d.getSeconds()].join('|'));log('Heure envoyée.')}
+function onWatchEvent(a){
+  var m={play:'Lecture / pause',next:'Piste suivante',prev:'Piste précédente',voice:'Assistant vocal',bt:'Bluetooth',vibe:'Vibreur'};
+  log('Action de la montre : '+(m[a]||a)+(['play','next','prev','voice'].indexOf(a)>=0?' (pas encore reliée à une application)':''));
+}
+
+/* ---------- Activité ---------- */
+function hav(a,b,c,d){var R=6371000,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)*Math.sin(y/2);return 2*R*Math.asin(Math.sqrt(h))}
+function onPos(p){
+  var c=p.coords,t=p.timestamp,sp=null;
+  $('#gpsMsg').textContent='Précision du GPS : '+Math.round(c.accuracy)+' m';
+  if(A.last){
+    var d=hav(A.last.lat,A.last.lon,c.latitude,c.longitude),dt=(t-A.last.t)/1000;
+    if(typeof c.speed==='number'&&!isNaN(c.speed))sp=c.speed*3.6;else if(dt>0)sp=d/dt*3.6;
+    if(A.run&&c.accuracy<40&&d>2)A.distM+=d;
+  }else if(typeof c.speed==='number'&&!isNaN(c.speed))sp=c.speed*3.6;
+  if(sp!==null)A.speed=Math.max(0,sp);
+  A.last={lat:c.latitude,lon:c.longitude,t:t};
+}
+function startGps(){
+  if(A.watch!==null)return;
+  if(!navigator.geolocation){$('#gpsMsg').textContent='GPS indisponible dans ce navigateur.';return}
+  A.watch=navigator.geolocation.watchPosition(onPos,function(e){$('#gpsMsg').textContent='GPS : '+e.message},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+}
+function stats(){
+  var ms=A.activeMs+(A.run?Date.now()-A.since:0),s=Math.floor(ms/1000),km=A.distM/1000,avg=ms>0?km/(ms/3600000):0;
+  return {s:s,km:km,avg:avg,speed:A.run?A.speed:0};
+}
+function two(n){return String(n).padStart(2,'0')}
+function durText(s){return s>=3600?two(Math.floor(s/3600))+':'+two(Math.floor(s%3600/60)):two(Math.floor(s/60))+':'+two(s%60)}
+function render(){
+  var st=stats();
+  $('#vSpeed').textContent=Math.round(st.speed);$('#vKm').textContent=st.km.toFixed(1);$('#vDur').textContent=durText(st.s);$('#vAvg').textContent=st.avg.toFixed(1);
+  $('#bStart').textContent=A.run?'Arrêter':(A.activeMs>0?'Reprendre':'Démarrer');
+}
+$('#bStart').onclick=function(){
+  if(A.run){A.activeMs+=Date.now()-A.since;A.run=false}
+  else{startGps();A.run=true;A.since=Date.now()}
+  render();
+};
+$('#bReset').onclick=function(){A.run=false;A.distM=0;A.activeMs=0;A.speed=0;render()};
+
+/* ---------- Cryptos ---------- */
+function fmtPrice(v){
+  if(v>=100){return Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' $'}
+  return v.toFixed(2).replace('.',',')+' $';
+}
+function fmtChg(c){return (c>=0?'+':'')+c.toFixed(1)+'%'}
+async function refreshCrypto(){
+  var syms=$('#syms').value.toUpperCase().split(',').map(function(x){return x.trim()}).filter(Boolean).slice(0,8);
+  var ids=syms.map(function(s){return IDS[s]}).filter(Boolean);
+  if(!ids.length){$('#cryMsg').textContent='Symboles connus : '+Object.keys(IDS).join(', ');return}
+  try{
+    var r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=usd&include_24hr_change=true');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var j=await r.json();
+    prices=syms.filter(function(s){return IDS[s]&&j[IDS[s]]}).map(function(s){var o=j[IDS[s]];return {sym:s,price:fmtPrice(o.usd),chg:fmtChg(o.usd_24h_change||0)}});
+    $('#cryTable').innerHTML=prices.map(function(p){return '<tr><td><b>'+p.sym+'</b></td><td>'+p.price+'</td><td class="'+(p.chg[0]==='-'?'down':'up')+'">'+p.chg+'</td></tr>'}).join('');
+    $('#cryMsg').textContent='Mis à jour à '+new Date().toLocaleTimeString('fr-FR');
+    sendCrypto();
+  }catch(e){$('#cryMsg').textContent='Prix indisponibles : '+e.message}
+}
+function sendCrypto(){prices.forEach(function(p){send('C|'+p.sym+'|'+p.price+'|'+p.chg)})}
+$('#bCrypto').onclick=refreshCrypto;
+
+/* ---------- Boucle d'envoi ---------- */
+var tick=0;
+setInterval(function(){
+  render();tick++;
+  if(!rx)return;
+  var st=stats();
+  send('S|'+Math.round(st.speed)+'|'+st.km.toFixed(2)+'|'+st.s+'|'+st.avg.toFixed(1));
+  if(tick%30===0)sendCrypto();
+},1000);
+setInterval(refreshCrypto,60000);
+
+$('#bConnect').onclick=connect;
+$('#bDisc').onclick=disconnect;
+$('#bTime').onclick=syncTime;
+render();refreshCrypto();
+</script>
+</body>
+</html>
