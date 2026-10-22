@@ -64,6 +64,7 @@ int lastCadran = 0;
 bool pageLive[MAX_PAGES];
 TFT_eSprite *bgSpr = nullptr;   // fond statique mis en cache (fluidité)
 bool bgOk = false;
+void *bgBuf = nullptr, *frBuf = nullptr;   // zones mémoire des deux sprites
 int bgIdx = -1;
 int bgPrefix = 0;
 bool pageAnim[MAX_PAGES];   // page avec une image dont la couleur change : redessin rapide
@@ -564,7 +565,7 @@ static void renderPage(int idx) {
       spr = real;
       bgIdx = idx; bgPrefix = n;
     }
-    memcpy(spr->getPointer(), bgSpr->getPointer(), 240 * 240 * 2);
+    memcpy(frBuf, bgBuf, 240 * 240 * 2);
     int i = 0;
     for (JsonObject e : els) { if (i++ < bgPrefix) continue; drawElement(e, t, page); }
   } else {
@@ -916,10 +917,11 @@ void setup() {
 
   spr = new TFT_eSprite(ttgo->tft);
   spr->setColorDepth(16);
-  spr->createSprite(240, 240);
+  frBuf = spr->createSprite(240, 240);
   bgSpr = new TFT_eSprite(ttgo->tft);
   bgSpr->setColorDepth(16);
-  bgOk = bgSpr->createSprite(240, 240) != nullptr;
+  bgBuf = bgSpr->createSprite(240, 240);
+  bgOk = bgBuf != nullptr && frBuf != nullptr;
   Serial.printf("RNK:BOOT 3 ecran heap=%u\n", ESP.getFreeHeap());
 
   if (!SPIFFS.begin(false)) {
