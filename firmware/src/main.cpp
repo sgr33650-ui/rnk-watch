@@ -23,7 +23,8 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.3"
+#define FW_VERSION      "rnk-runtime-0.3.1"
+#define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
 #define SLEEP_AFTER_MS  20000UL     // extinction après inactivité, sur batterie uniquement
@@ -862,8 +863,10 @@ static void goSleep() {
 /* ---------- Programme ---------- */
 void setup() {
   Serial.begin(115200);
+  Serial.println("RNK:BOOT 1 serie");
   ttgo = TTGOClass::getWatch();
   ttgo->begin();
+  Serial.println("RNK:BOOT 2 montre");
   ttgo->openBL();
   ttgo->setBrightness(brightness);
   ttgo->power->adc1Enable(AXP202_BATT_VOL_ADC1 | AXP202_BATT_CUR_ADC1 | AXP202_VBUS_VOL_ADC1 | AXP202_VBUS_CUR_ADC1, AXP202_ON);
@@ -876,6 +879,7 @@ void setup() {
   spr = new TFT_eSprite(ttgo->tft);
   spr->setColorDepth(16);
   spr->createSprite(240, 240);
+  Serial.printf("RNK:BOOT 3 ecran heap=%u\n", ESP.getFreeHeap());
 
   SPIFFS.begin(true);
   if (!loadFromFlash()) Serial.println("RNK:INFO aucun layout en memoire");
@@ -883,7 +887,9 @@ void setup() {
   D.batt = ttgo->power->getBattPercentage();
   D.usb = ttgo->power->isVBUSPlug();
   lastActivity = millis();
+  Serial.println("RNK:BOOT 4 fichiers");
   bleStart();
+  Serial.println("RNK:BOOT 5 ble");
   Serial.println("RNK:PONG " FW_VERSION);
 }
 
@@ -917,6 +923,8 @@ void loop() {
     lastSec = D.second; lastMin = D.minute; lastBatt = D.batt; lastPage = curPage; dirty = false;
   }
 
+#if AUTO_SLEEP
   if (!D.usb && rx == RX_IDLE && millis() - lastActivity > SLEEP_AFTER_MS) goSleep();
+#endif
   delay(20);
 }
