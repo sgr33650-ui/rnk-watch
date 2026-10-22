@@ -834,12 +834,28 @@ function renderProps(){
   }
   $('#bodyR').innerHTML=h;
 }
+var FM={};
+function frameOf(p){return p.elements.filter(function(e){return e.type==='frame'})[0]}
+function arcsOf(p){return p.elements.filter(function(e){return e.type==='battery'&&e.shape==='arc'})}
+function quickHTML(p){
+  var f=frameOf(p),arcs=arcsOf(p),h='<h3 class="sh">Réglages rapides du cadran</h3>';
+  if(f){
+    var has=f.style!=='none'||f.screws;
+    h+='<div class="fld"><span>Contour extérieur et 4 vis</span><button class="btn sm" data-act="frameToggle">'+(has?'Retirer le contour':'Remettre le contour')+'</button></div>';
+  }
+  if(arcs.length){
+    h+='<div class="fld"><span>Arc rouge de batterie ('+Math.round(arcs[0].w)+' px)</span><span class="row2" style="margin:0"><button class="btn sm" data-act="arcOut">Vers l’extérieur</button><button class="btn sm" data-act="arcIn">Vers le centre</button></span></div>';
+  }
+  h+='<div class="fld"><span>Cette page</span><button class="btn sm" style="color:var(--bad)" data-act="pageDel"'+(S.pages.length>1?'':' disabled')+'>'+UI.trash+'Supprimer ce cadran</button></div>';
+  return h;
+}
 function renderPageTab(){
   var p=page(),h='<h3 class="sh">Page</h3>'+
   '<label class="fld"><span>Nom</span><input type="text" id="pgName" data-pk="name" value="'+esc(p.name)+'"></label>'+
   '<label class="fld"><span>Type</span><select data-pk="kind"><option value="cadran"'+(p.kind==='cadran'?' selected':'')+'>Cadran (balayage)</option><option value="appli"'+(p.kind==='appli'?' selected':'')+'>Application</option></select></label>'+
   '<label class="fld"><span>Thème</span><select data-pk="themeId"><option value="">Thème global</option>'+Object.keys(S.themes).map(function(k){return '<option value="'+k+'"'+(p.themeId===k?' selected':'')+'>'+esc(S.themes[k].name)+'</option>'}).join('')+'</select></label>'+
   '<p class="note">Les cadrans se changent par balayage de gauche à droite. Les applications s’ouvrent par balayage de droite à gauche ou par le bouton de la montre.</p>'+
+  quickHTML(p)+
   '<h3 class="sh">Données d’aperçu</h3>';
   var pv=S.preview,sl=function(k,l,mx){return '<label class="fld"><span>'+l+' <b data-pvout="'+k+'" style="font-family:var(--f-mono);font-weight:500;color:var(--fg)">'+pv[k]+'</b></span><input type="range" data-pv="'+k+'" min="0" max="'+mx+'" value="'+pv[k]+'"></label>'};
   h+=sl('hour','Heure',23)+sl('minute','Minute',59)+sl('second','Seconde',59)+sl('battery','Batterie',100)+sl('speed','Vitesse',300);
@@ -870,7 +886,7 @@ function renderRight(){
 }
 function renderStagebar(){
   var p=page();
-  $('#stagebar').innerHTML='<h2>'+esc(p.name)+'<span>240 × 240</span></h2><div class="row2" style="margin:0"><button class="btn sm'+(S.test?' on':'')+'" data-act="toggleTest" aria-pressed="'+S.test+'">'+UI.play+'Mode test</button>'+
+  $('#stagebar').innerHTML='<h2>'+esc(p.name)+'<span>240 × 240</span></h2><div class="row2" style="margin:0"><button class="btn sm'+(S.test?' on':'')+'" data-act="toggleTest" aria-pressed="'+S.test+'">'+UI.play+'Mode test</button>'+(S.pages.length>1?'<button class="btn sm" data-act="pageDel" title="Supprimer ce cadran">'+UI.trash+'Supprimer ce cadran</button>':'')+
     (S.test?'<button class="btn sm" data-act="testBtn">Bouton de la montre</button>':'<button class="btn sm'+(S.snap?' on':'')+'" data-act="toggleSnap" aria-pressed="'+S.snap+'">Magnétisme</button>')+'</div>';
 }
 var PM={sel:{},ask:false};
@@ -1187,6 +1203,21 @@ var ACT={
   pageAdd:function(){addPage(mkPage('Nouvelle page','cadran','',[mkEl('frame',{lock:true})]))},
   pageDup:function(){var c=clone(page());c.id=uid();c.name=c.name+' copie';c.elements.forEach(function(e){e.id=uid()});addPage(c)},
   pageDel:function(){if(S.pages.length<2)return;S.pages.splice(S.cur,1);S.cur=Math.max(0,S.cur-1);S.sel=null;commit();renderAll()},
+  frameToggle:function(){
+    var p=page(),f=frameOf(p);if(!f)return;
+    if(f.style!=='none'||f.screws){FM[p.id||S.cur]={style:f.style,screws:f.screws,border:f.border};f.style='none';f.screws=false;f.border=false}
+    else{var m=FM[p.id||S.cur]||{style:'metal',screws:true,border:true};f.style=m.style==='none'?'metal':m.style;f.screws=m.screws;f.border=m.border}
+    commit();renderAll();
+  },
+  arcMove:function(d){
+    var p=page();arcsOf(p).forEach(function(e){
+      var cx=e.x+e.w/2,cy=e.y+e.h/2,v=Math.max(120,Math.min(244,e.w+d));
+      e.w=v;e.h=v;e.x=+(cx-v/2).toFixed(1);e.y=+(cy-v/2).toFixed(1);
+    });
+    commit();renderAll();
+  },
+  arcOut:function(){ACT.arcMove(8)},
+  arcIn:function(){ACT.arcMove(-8)},
   pageMgr:function(){PM.sel={};PM.ask=false;openPM()},
   pmTog:function(a){var i=a.dataset.i;if(PM.sel[i])delete PM.sel[i];else PM.sel[i]=1;PM.ask=false;openPM()},
   pmAll:function(){PM.sel={};S.pages.forEach(function(p,i){PM.sel[i]=1});PM.ask=false;openPM()},
