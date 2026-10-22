@@ -23,7 +23,7 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.4.0"
+#define FW_VERSION      "rnk-runtime-0.4.1"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
@@ -856,7 +856,10 @@ static int homePage() {
 }
 static void pollTouch() {
   int16_t x, y;
-  if (digitalRead(TOUCH_INT) == LOW && ttgo->getTouch(x, y)) {
+  static unsigned long lastPoll = 0;
+  if (millis() - lastPoll < 12) return;
+  lastPoll = millis();
+  if (ttgo->getTouch(x, y)) {
     if (!touching) { touching = true; tx0 = x; ty0 = y; tStart = millis(); longDone = false; }
     tx1 = x; ty1 = y; tUp = millis(); lastActivity = millis();
     // appui long (sans bouger) : retour au cadran d'accueil
@@ -955,7 +958,7 @@ void loop() {
   if (pekIrq) {
     pekIrq = false;
     ttgo->power->readIRQ();
-    if (ttgo->power->isPEKShortPressIRQ() && pageCount > 0) toggleApps();
+    if (ttgo->power->isPEKShortPressIRQ() && pageCount > 0) gotoPage((curPage + 1) % pageCount);   // défile toutes les pages
     ttgo->power->clearIRQ();
     lastActivity = millis();
   }
@@ -970,7 +973,7 @@ void loop() {
   if (!need && pageCount > 0 && pageLive[curPage] && D.second != lastSec) need = true;
   if (!need && pageCount > 0 && pageAnim[curPage] && millis() - lastAnim >= 120) need = true;
   if (need) lastAnim = millis();
-  if (need && rx == RX_IDLE) {
+  if (need && rx == RX_IDLE && !touching) {   // pas de redessin pendant un geste : le tactile reste réactif
     if (pageCount > 0) renderPage(curPage); else renderFallback();
     lastSec = D.second; lastMin = D.minute; lastBatt = D.batt; lastPage = curPage; dirty = false;
   }

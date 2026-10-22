@@ -873,10 +873,22 @@ function renderStagebar(){
   $('#stagebar').innerHTML='<h2>'+esc(p.name)+'<span>240 × 240</span></h2><div class="row2" style="margin:0"><button class="btn sm'+(S.test?' on':'')+'" data-act="toggleTest" aria-pressed="'+S.test+'">'+UI.play+'Mode test</button>'+
     (S.test?'<button class="btn sm" data-act="testBtn">Bouton de la montre</button>':'<button class="btn sm'+(S.snap?' on':'')+'" data-act="toggleSnap" aria-pressed="'+S.snap+'">Magnétisme</button>')+'</div>';
 }
+var PM={sel:{},ask:false};
+function openPM(){
+  var m=$('#modal'),n=Object.keys(PM.sel).length,h='<div class="dlg" role="dialog" aria-label="Gérer les pages"><h3>Gérer les pages</h3><p class="note" style="margin:0">Coche les pages à supprimer, puis valide. Tu peux annuler ensuite avec le bouton Annuler en haut.</p><div style="display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto">';
+  S.pages.forEach(function(p,i){
+    var on=!!PM.sel[i];
+    h+='<button class="btn" data-act="pmTog" data-i="'+i+'" aria-pressed="'+on+'" style="justify-content:flex-start;text-align:left;'+(on?'border-color:var(--bad);background:rgba(217,100,95,.15)':'')+'"><span aria-hidden="true" style="display:inline-block;width:18px;height:18px;border:2px solid '+(on?'var(--bad)':'var(--line)')+';border-radius:4px;margin-right:10px;text-align:center;line-height:14px;font-size:14px">'+(on?'✓':'')+'</span>'+(i+1)+' · '+esc(p.name)+' <span style="opacity:.6;margin-left:8px">'+(p.kind==='appli'?'application':'cadran')+'</span></button>';
+  });
+  h+='</div><div class="row2" style="margin:0"><button class="btn sm" data-act="pmAll">Tout sélectionner</button><button class="btn sm" data-act="pmNone">Tout désélectionner</button></div>';
+  h+='<div class="row2" style="margin:0"><button class="btn primary" data-act="pmDel"'+(n?'':' disabled')+' style="'+(PM.ask?'background:var(--bad)':'')+'">'+(PM.ask?'Confirmer : supprimer '+n+(n>1?' pages':' page'):(n?'Supprimer '+n+(n>1?' pages':' page'):'Supprimer'))+'</button><button class="btn" data-act="closeModal">Fermer</button></div></div>';
+  m.hidden=false;m.innerHTML=h;
+}
 function renderPages(){
   var h='';
   S.pages.forEach(function(p,i){h+='<button class="pg" data-act="pageGo" data-i="'+i+'" aria-current="'+(i===S.cur)+'" title="'+esc(p.name)+'">'+thumb(p,64)+'<span>'+(i+1)+' · '+esc(p.name)+'</span></button>'});
   h+='<button class="btn ico" data-act="pageAdd" aria-label="Nouvelle page" title="Nouvelle page">'+UI.plus+'</button><button class="btn ico" data-act="pageDup" aria-label="Dupliquer la page" title="Dupliquer la page">'+UI.copy+'</button><button class="btn ico" data-act="pageLeft" aria-label="Reculer la page" title="Reculer la page">'+UI.left+'</button><button class="btn ico" data-act="pageRight" aria-label="Avancer la page" title="Avancer la page">'+UI.right+'</button><button class="btn ico" data-act="pageDel" aria-label="Supprimer la page" title="Supprimer la page"'+(S.pages.length>1?'':' disabled')+'>'+UI.trash+'</button>';
+  h+='<button class="btn sm" data-act="pageMgr" title="Choisir plusieurs pages à supprimer">Gérer les pages</button>';
   $('#pages').innerHTML=h;
 }
 function renderContent(){
@@ -1175,6 +1187,19 @@ var ACT={
   pageAdd:function(){addPage(mkPage('Nouvelle page','cadran','',[mkEl('frame',{lock:true})]))},
   pageDup:function(){var c=clone(page());c.id=uid();c.name=c.name+' copie';c.elements.forEach(function(e){e.id=uid()});addPage(c)},
   pageDel:function(){if(S.pages.length<2)return;S.pages.splice(S.cur,1);S.cur=Math.max(0,S.cur-1);S.sel=null;commit();renderAll()},
+  pageMgr:function(){PM.sel={};PM.ask=false;openPM()},
+  pmTog:function(a){var i=a.dataset.i;if(PM.sel[i])delete PM.sel[i];else PM.sel[i]=1;PM.ask=false;openPM()},
+  pmAll:function(){PM.sel={};S.pages.forEach(function(p,i){PM.sel[i]=1});PM.ask=false;openPM()},
+  pmNone:function(){PM.sel={};PM.ask=false;openPM()},
+  pmDel:function(){
+    var n=Object.keys(PM.sel).length;if(!n)return;
+    if(n>=S.pages.length){toast('Garde au moins une page.');return}
+    if(!PM.ask){PM.ask=true;openPM();return}
+    var cur=S.pages[S.cur];
+    S.pages=S.pages.filter(function(p,i){return !PM.sel[i]});
+    var k=S.pages.indexOf(cur);S.cur=k>=0?k:0;S.sel=null;PM.sel={};PM.ask=false;
+    commit();closeModal();renderAll();toast(n+(n>1?' pages supprimées':' page supprimée'));
+  },
   pageLeft:function(){if(S.cur>0){var t=S.pages[S.cur];S.pages[S.cur]=S.pages[S.cur-1];S.pages[S.cur-1]=t;S.cur--;commit();renderAll()}},
   pageRight:function(){if(S.cur<S.pages.length-1){var t=S.pages[S.cur];S.pages[S.cur]=S.pages[S.cur+1];S.pages[S.cur+1]=t;S.cur++;commit();renderAll()}},
   themeDup:function(){var k='t'+Date.now().toString(36),t=clone(S.themes[S.themeId]);t.name=t.name+' copie';S.themes[k]=t;S.themeId=k;commit();renderAll()},
