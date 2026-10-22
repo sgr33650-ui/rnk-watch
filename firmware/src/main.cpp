@@ -14,7 +14,7 @@
 #define LILYGO_WATCH_2020_V3
 #include <LilyGoWatch.h>
 #include <ArduinoJson.h>
-#include <LittleFS.h>
+#include <SPIFFS.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -584,7 +584,7 @@ static bool loadLayout(const uint8_t *buf, size_t len) {
   return true;
 }
 static bool loadFromFlash() {
-  File f = LittleFS.open(LAYOUT_PATH, "r");
+  File f = SPIFFS.open(LAYOUT_PATH, "r");
   if (!f) return false;
   size_t n = f.size();
   if (n == 0 || n > MAX_LAYOUT) { f.close(); return false; }
@@ -649,7 +649,7 @@ static void finishReceive() {
   uint32_t c = crc32Calc(rxBuf, rxLen);
   if (c != rxCrc) { Serial.println("RNK:ERR crc"); rxReset(); return; }
   if (!loadLayout(rxBuf, rxLen)) { Serial.println("RNK:ERR json"); rxReset(); return; }
-  File f = LittleFS.open(LAYOUT_PATH, "w");
+  File f = SPIFFS.open(LAYOUT_PATH, "w");
   if (f) { f.write(rxBuf, rxLen); f.close(); }
   Serial.printf("RNK:OK %d\n", pageCount);
   rxReset();
@@ -877,7 +877,7 @@ void setup() {
   spr->setColorDepth(16);
   spr->createSprite(240, 240);
 
-  LittleFS.begin(true);
+  SPIFFS.begin(true);
   if (!loadFromFlash()) Serial.println("RNK:INFO aucun layout en memoire");
   readClock();
   D.batt = ttgo->power->getBattPercentage();
