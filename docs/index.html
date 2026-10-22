@@ -1056,7 +1056,7 @@ function waitLine(prefix,ms){
 }
 function onLine(l){
   wlog('< '+l);
-  for(var i=0;i<WATCH.waiters.length;i++){var w=WATCH.waiters[i];if(l.indexOf(w.prefix)===0){WATCH.waiters.splice(i,1);w.res(l);return}}
+  for(var i=0;i<WATCH.waiters.length;i++){var w=WATCH.waiters[i];var k=l.indexOf(w.prefix);if(k>=0){WATCH.waiters.splice(i,1);w.res(l.slice(k));return}}
 }
 async function readLoop(){
   var buf='';
@@ -1114,8 +1114,12 @@ async function wSend(){
   var bar=function(p){var b=document.getElementById('wprog');if(b)b.style.width=p+'%'};
   try{
     var json=JSON.stringify(compile()),bytes=new TextEncoder().encode(json),crc=crc32(bytes);
+    var alive=null;
+    for(var t=0;t<5&&!alive;t++){wlog('> RNK:PING');await wWrite('\nRNK:PING\n');alive=await waitLine('RNK:PONG',1500)}
+    if(!alive){wlog('La montre ne répond pas au test. Attends qu’elle ait fini de démarrer (écran allumé), puis réessaie.');toast('La montre ne répond pas');return}
+    await sleep(300);
     wlog('> RNK:BEGIN '+bytes.length+' '+crc);await wWrite('RNK:BEGIN '+bytes.length+' '+crc+'\n');
-    var ready=await waitLine('RNK:READY',1500);
+    var ready=await waitLine('RNK:READY',4000);
     if(!ready){wlog('Pas de réponse : l’envoi est annulé. Le firmware RNK Runtime doit tourner sur la montre.');toast('La montre ne répond pas');return}
     var CH=256;
     for(var i=0;i<bytes.length;i+=CH){await WATCH.writer.write(bytes.slice(i,i+CH));bar(Math.round(Math.min(i+CH,bytes.length)/bytes.length*100));await sleep(6)}
