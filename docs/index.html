@@ -712,7 +712,8 @@ function defaultProject(){
 /* historique */
 var H={stack:[],i:-1};
 function snap(){return JSON.stringify({name:S.name,themeId:S.themeId,themes:S.themes,pages:S.pages,cur:S.cur})}
-function persist(){try{localStorage.setItem(STORE,snap())}catch(e){}}
+var _pw=false;
+function persist(){try{localStorage.setItem(STORE,snap())}catch(e){if(!_pw){_pw=true;toast('Sauvegarde automatique impossible (navigateur bloqué ou projet trop gros). Exporte ton projet : onglet Montre, Exporter, Projet (.json).',8000)}}}
 function commit(){
   var s=snap();if(H.stack[H.i]===s)return;
   H.stack=H.stack.slice(0,H.i+1);H.stack.push(s);if(H.stack.length>80)H.stack.shift();H.i=H.stack.length-1;
@@ -1423,7 +1424,7 @@ function init(){
     var raw=localStorage.getItem(STORE);
     if(raw){var o=JSON.parse(raw);if(o&&Array.isArray(o.pages)&&o.pages.length){S.name=o.name||S.name;S.themes=o.themes||S.themes;S.themeId=o.themeId||'brique';S.pages=o.pages;S.cur=Math.min(o.cur||0,o.pages.length-1);loaded=true}}
   }catch(e){}
-  if(!loaded)defaultProject();
+  if(!loaded){defaultProject();try{if(!localStorage.getItem('atelier-rnk-hint')){localStorage.setItem('atelier-rnk-hint','1');setTimeout(function(){toast('Ton travail est enregistré dans CE navigateur, pour CETTE adresse. Pour le retrouver ailleurs : onglet Montre, Exporter, Projet (.json), puis Importer.',9000)},800)}}catch(e){}}
   if(window.innerWidth<640)S.zoom=1.25;
   else if(window.innerWidth<1180)S.zoom=1.5;
   H.stack=[snap()];H.i=0;
