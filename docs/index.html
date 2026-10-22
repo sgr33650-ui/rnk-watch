@@ -834,7 +834,7 @@ function renderProps(){
   }
   $('#bodyR').innerHTML=h;
 }
-var FM={};
+var FM={},CLR=false;
 function frameOf(p){return p.elements.filter(function(e){return e.type==='frame'})[0]}
 function arcsOf(p){return p.elements.filter(function(e){return e.type==='battery'&&e.shape==='arc'})}
 function quickHTML(p){
@@ -843,9 +843,13 @@ function quickHTML(p){
     var has=f.style!=='none'||f.screws;
     h+='<div class="fld"><span>Contour extérieur et 4 vis</span><button class="btn sm" data-act="frameToggle">'+(has?'Retirer le contour':'Remettre le contour')+'</button></div>';
   }
+  if(f){
+    h+='<div class="fld"><span>Coins noirs arrondis ('+Math.round(f.r)+' px)</span><button class="btn sm" data-act="cornerToggle">'+(f.r>0?'Retirer les coins arrondis':'Remettre les coins arrondis')+'</button></div>';
+  }
   if(arcs.length){
     h+='<div class="fld"><span>Arc rouge de batterie ('+Math.round(arcs[0].w)+' px)</span><span class="row2" style="margin:0"><button class="btn sm" data-act="arcOut">Vers l’extérieur</button><button class="btn sm" data-act="arcIn">Vers le centre</button></span></div>';
   }
+  h+='<div class="fld"><span>Tout effacer sur cette page</span><button class="btn sm" style="color:var(--bad)" data-act="pageClear">'+(CLR?'Confirmer : tout effacer ('+p.elements.length+' éléments)':'Vider la page')+'</button></div>';
   h+='<div class="fld"><span>Cette page</span><button class="btn sm" style="color:var(--bad)" data-act="pageDel"'+(S.pages.length>1?'':' disabled')+'>'+UI.trash+'Supprimer ce cadran</button></div>';
   return h;
 }
@@ -1199,7 +1203,7 @@ var ACT={
   centerH:function(){var e=selEl();if(!e)return;e.x=Math.round((240-e.w)/2);commit();renderProps();renderContent();renderOverlay();renderPages()},
   centerV:function(){var e=selEl();if(!e)return;e.y=Math.round((240-e.h)/2);commit();renderProps();renderContent();renderOverlay();renderPages()},
   setcolor:function(a){var e=selEl();if(!e)return;e[a.dataset.k]=a.dataset.v;commit();renderProps();renderContent();renderPages();renderLeft()},
-  pageGo:function(a){S.cur=+a.dataset.i;S.sel=null;renderAll()},
+  pageGo:function(a){CLR=false;S.cur=+a.dataset.i;S.sel=null;renderAll()},
   pageAdd:function(){addPage(mkPage('Nouvelle page','cadran','',[mkEl('frame',{lock:true})]))},
   pageDup:function(){var c=clone(page());c.id=uid();c.name=c.name+' copie';c.elements.forEach(function(e){e.id=uid()});addPage(c)},
   pageDel:function(){if(S.pages.length<2)return;S.pages.splice(S.cur,1);S.cur=Math.max(0,S.cur-1);S.sel=null;commit();renderAll()},
@@ -1208,6 +1212,16 @@ var ACT={
     if(f.style!=='none'||f.screws){FM[p.id||S.cur]={style:f.style,screws:f.screws,border:f.border};f.style='none';f.screws=false;f.border=false}
     else{var m=FM[p.id||S.cur]||{style:'metal',screws:true,border:true};f.style=m.style==='none'?'metal':m.style;f.screws=m.screws;f.border=m.border}
     commit();renderAll();
+  },
+  cornerToggle:function(){
+    var p=page(),f=frameOf(p);if(!f)return;
+    if(f.r>0){FM['r'+(p.id||S.cur)]=f.r;f.r=0}else f.r=FM['r'+(p.id||S.cur)]||12;
+    commit();renderAll();
+  },
+  pageClear:function(){
+    var p=page();
+    if(!CLR){CLR=true;renderRight();return}
+    CLR=false;p.elements=[];S.sel=null;commit();renderAll();toast('Page vidée. Annuler ramène les éléments.');
   },
   arcMove:function(d){
     var p=page();arcsOf(p).forEach(function(e){
