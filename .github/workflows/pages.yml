@@ -23,15 +23,20 @@ jobs:
         with:
           python-version: '3.11'
       - name: Compiler le firmware (le site est publié même si cette étape échoue)
-        continue-on-error: true
         run: |
-          pip install platformio esptool
-          cd firmware && pio run
+          mkdir -p docs/firmware
+          pip install platformio esptool > pip.log 2>&1 || { echo "::error title=pip::$(tail -c 900 pip.log | tr '\n' '|')"; exit 0; }
+          cd firmware
+          if ! pio run > ../build.log 2>&1; then
+            echo "::error title=compilation::$(grep -iE 'error|fatal|undefined|not found' ../build.log | head -12 | cut -c1-300 | tr '\n' '|')"
+            echo "::error title=fin du journal::$(tail -n 8 ../build.log | cut -c1-300 | tr '\n' '|')"
+            exit 0
+          fi
           B=.pio/build/twatch2020v3
           BOOT=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
-          esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin \
-            --flash_mode dio --flash_size keep \
-            0x1000 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin
+          if ! esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin --flash_mode dio --flash_size keep 0x1000 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin > ../merge.log 2>&1; then
+            echo "::error title=fusion::$(tail -c 900 ../merge.log | tr '\n' '|')"
+          fi
       - name: Manifeste du firmware
         run: |
           mkdir -p docs/firmware
