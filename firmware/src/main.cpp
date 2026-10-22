@@ -23,7 +23,7 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.4.1"
+#define FW_VERSION      "rnk-runtime-0.5.0"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
@@ -64,6 +64,7 @@ int lastCadran = 0;
 bool pageLive[MAX_PAGES];
 TFT_eSprite *bgSpr = nullptr;   // fond statique mis en cache (fluidité)
 bool bgOk = false;
+bool screenOff = false;   // écran éteint (action Écran), réveil au toucher ou au bouton
 void *bgBuf = nullptr, *frBuf = nullptr;   // zones mémoire des deux sprites
 int bgIdx = -1;
 int bgPrefix = 0;
@@ -833,7 +834,13 @@ static void toggleApps() {
 static void doAction(const char *act, const char *target) {
   if (!strcmp(act, "goto")) gotoPage(findPageByName(target));
   else if (!strcmp(act, "bright")) { static const uint8_t lv[] = {40, 100, 160, 255}; int i = 0; while (i < 3 && lv[i] <= brightness) i++; brightness = lv[i]; ttgo->setBrightness(brightness); }
-  else if (!strcmp(act, "sleep")) { lastActivity = 0; }
+  else if (!strcmp(act, "sleep")) { screenOff = true; ttgo->closeBL(); ttgo->displaySleep(); }
+  else if (!strcmp(act, "bt")) { if (bleOn) bleStop(); else bleStart(); }
+  else if (!strcmp(act, "vibe")) {
+#ifdef LILYGO_WATCH_HAS_MOTOR
+    ttgo->motor->onec(120);
+#endif
+  }
   else if (strcmp(act, "none")) sendEvt(act);   // play, next, prev, voice, bt, vibe : relayés au téléphone
 }
 static void onTap(int x, int y) {
@@ -847,6 +854,13 @@ static void onTap(int x, int y) {
   }
 }
 static bool touching = false;
+static void wakeScreen() {
+  screenOff = false;
+  ttgo->displayWakeup();
+  ttgo->openBL();
+  ttgo->setBrightness(brightness);
+  dirty = true;
+}
 static int tx0, ty0, tx1, ty1;
 static unsigned long tUp = 0, tStart = 0;
 static bool longDone = false;
@@ -860,6 +874,7 @@ static void pollTouch() {
   if (millis() - lastPoll < 12) return;
   lastPoll = millis();
   if (ttgo->getTouch(x, y)) {
+    if (screenOff) { wakeScreen(); tUp = millis(); lastActivity = millis(); touching = false; return; }
     if (!touching) { touching = true; tx0 = x; ty0 = y; tStart = millis(); longDone = false; }
     tx1 = x; ty1 = y; tUp = millis(); lastActivity = millis();
     // appui long (sans bouger) : retour au cadran d'accueil
@@ -942,6 +957,9 @@ void setup() {
   D.batt = ttgo->power->getBattPercentage();
   D.usb = ttgo->power->isVBUSPlug();
   lastActivity = millis();
+#ifdef LILYGO_WATCH_HAS_MOTOR
+  ttgo->motor_begin();
+#endif
   Serial.println("RNK:BOOT 4 fichiers");
   bleStart();
   Serial.println("RNK:BOOT 5 ble");
@@ -958,7 +976,7 @@ void loop() {
   if (pekIrq) {
     pekIrq = false;
     ttgo->power->readIRQ();
-    if (ttgo->power->isPEKShortPressIRQ() && pageCount > 0) gotoPage((curPage + 1) % pageCount);   // défile toutes les pages
+    if (ttgo->power->isPEKShortPressIRQ() && pageCount > 0) { if (screenOff) wakeScreen(); else gotoPage((curPage + 1) % pageCount); }   // défile toutes les pages
     ttgo->power->clearIRQ();
     lastActivity = millis();
   }
@@ -973,7 +991,7 @@ void loop() {
   if (!need && pageCount > 0 && pageLive[curPage] && D.second != lastSec) need = true;
   if (!need && pageCount > 0 && pageAnim[curPage] && millis() - lastAnim >= 120) need = true;
   if (need) lastAnim = millis();
-  if (need && rx == RX_IDLE && !touching) {   // pas de redessin pendant un geste : le tactile reste réactif
+  if (need && rx == RX_IDLE && !touching && !screenOff) {   // pas de redessin pendant un geste : le tactile reste réactif
     if (pageCount > 0) renderPage(curPage); else renderFallback();
     lastSec = D.second; lastMin = D.minute; lastBatt = D.batt; lastPage = curPage; dirty = false;
   }

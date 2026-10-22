@@ -205,7 +205,7 @@ function numBind(b,el,D){
 var BINDT=[['texte','Texte fixe'],['heure','Heure (09)'],['minute','Minute (15)'],['seconde','Seconde'],['hm','Heure:minute'],['date','Date complète'],['jour','Jour (SAM)'],['journ','Jour du mois'],['mois','Mois (OCT)'],['batt','Batterie %'],['speed','Vitesse (téléphone)'],['km','Distance km (téléphone)'],['dur','Durée activité (téléphone)'],['kmh','Vitesse moyenne (téléphone)'],['artiste','Artiste (téléphone)'],['titre','Titre du morceau (téléphone)'],['tpos','Temps écoulé (téléphone)'],['tdur','Durée du morceau (téléphone)']];
 var BINDN=[['fixe','Valeur fixe'],['minute','Minute'],['seconde','Seconde'],['heure12','Heure (cadran 12 h)'],['battery','Batterie %'],['speed','Vitesse (téléphone)']];
 var BINDC=[['heure','Heures'],['minute','Minutes'],['seconde','Secondes']];
-var ACTIONS=[['none','Aucune'],['goto','Ouvrir une page'],['play','Lecture / pause'],['next','Piste suivante'],['prev','Piste précédente'],['voice','Assistant vocal'],['bright','Luminosité'],['sleep','Mise en veille'],['bt','Bluetooth'],['vibe','Vibreur']];
+var ACTIONS=[['none','Aucune'],['goto','Ouvrir une page'],['play','Lecture / pause'],['next','Piste suivante'],['prev','Piste précédente'],['voice','Assistant vocal'],['bright','Luminosité'],['sleep','Mise en veille'],['bt','Bluetooth'],['vibe','Vibreur'],['gps','GPS du téléphone : démarrer / arrêter']];
 
 /* ========== Icônes (24×24) ========== */
 var ICONS={
@@ -597,7 +597,7 @@ function tplGps(){
     T(14,12,60,18,'09:15',{size:16,bind:'hm',anchor:'start',name:'Heure'}),
     T(150,12,76,18,'72%',{size:16,bind:'batt',anchor:'end',name:'Batterie'})
   ];
-  return mkPage('GPS / Activité','cadran','brique',els.concat(stat(40,'12.4','km','KM'),stat(94,'01:23','dur','DURÉE'),stat(148,'8.9','kmh','KM/H'),[mkEl('map',{x:88,y:40,w:138,h:156,name:'Carte'})]));
+  return mkPage('GPS / Activité','cadran','brique',els.concat(stat(40,'12.4','km','KM'),stat(94,'01:23','dur','DURÉE'),stat(148,'8.9','kmh','KM/H'),[mkEl('map',{x:88,y:40,w:138,h:156,name:'Carte'}),mkEl('row',{x:14,y:202,w:212,h:26,text:'Démarrer / arrêter',icon:'play',action:'gps',name:'Bouton GPS'})]));
 }
 function tplApps(){
   var defs=[['Spotify','spotify','Spotify'],['GPS','gps','GPS / Activité'],['IA','mic','Assistant vocal'],['Crypto','chart','Cryptos'],['Paramètres','gear','Paramètres'],['Plus','dots','']];
@@ -639,7 +639,7 @@ function tplVoice(){
   ]);
 }
 function tplSettings(){
-  var rows=[['Luminosité','sun','bright'],['Écran','screen','none'],['Connectivité','bluetooth','bt'],['Vibreur','vibrate','vibe'],['Thèmes cadran','palette','none'],['Système','system','none']];
+  var rows=[['Luminosité','sun','bright'],['Écran','screen','sleep'],['Connectivité','bluetooth','bt'],['Vibreur','vibrate','vibe'],['Thèmes cadran','palette','none'],['Système','system','none']];
   var els=[mkEl('frame',{lock:true,tex:'lignes',style:'fin',r:12,screws:false,name:'Cadre'}),T(14,10,60,18,'09:15',{size:15,bind:'hm',anchor:'start',name:'Heure'}),T(150,10,76,18,'72%',{size:15,bind:'batt',anchor:'end',name:'Batterie'})];
   rows.forEach(function(r,i){els.push(mkEl('row',{x:16,y:36+i*30,w:208,h:27,text:r[0],icon:r[1],action:r[2],name:'Réglage '+r[0]}))});
   return mkPage('Paramètres','appli','brique',els);

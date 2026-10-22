@@ -136,6 +136,7 @@ function disconnect(){manual=true;clearTimeout(retryT);if(dev&&dev.gatt.connecte
 function syncTime(){var d=new Date();send('T|'+[d.getFullYear(),d.getMonth()+1,d.getDate(),d.getHours(),d.getMinutes(),d.getSeconds()].join('|'));log('Heure envoyée.')}
 function onWatchEvent(a){
   var m={play:'Lecture / pause',next:'Piste suivante',prev:'Piste précédente',voice:'Assistant vocal',bt:'Bluetooth',vibe:'Vibreur'};
+  if(a==='gps'){log('Action de la montre : GPS');$('#bStart').click();return}
   log('Action de la montre : '+(m[a]||a)+(['play','next','prev','voice'].indexOf(a)>=0?' (pas encore reliée à une application)':''));
 }
 
