@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Installer le firmware RNK</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#121315;color:#e8e4da;font:16px/1.5 system-ui,sans-serif;padding:20px;max-width:640px;margin-inline:auto}
+h1{font-size:22px;letter-spacing:.04em;text-transform:uppercase}li{margin:8px 0}a{color:#6cc3d5}
+.box{background:#1a1b1e;border:1px solid #2f3135;border-radius:12px;padding:16px;margin:16px 0}
+esp-web-install-button button{background:#c2383d;color:#fff;border:0;border-radius:8px;padding:12px 20px;font-size:16px;cursor:pointer}
+</style></head><body>
+<h1>Installer le firmware RNK</h1>
+<div class="box">
+<ol>
+<li>Utilise <b>Chrome ou Edge sur ordinateur</b>.</li>
+<li>Branche la montre en USB.</li>
+<li>Clique sur le bouton, choisis le port de la montre (nom avec USB, CP210x ou CH340), puis <b>Installer</b>.</li>
+<li>Attends la fin (quelques minutes). Ne débranche pas.</li>
+</ol>
+<esp-web-install-button manifest="firmware/manifest.json"><button slot="activate">Installer sur la montre</button><span slot="unsupported">Ce navigateur ne gère pas l'USB : utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button>
+</div>
+<p>Ensuite, ouvre <a href="index.html">l'Atelier</a> pour envoyer un cadran.</p>
+<p id="st"></p>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.0.1/dist/web/install-button.js?module"></script>
+<script>fetch('firmware/manifest.json').then(function(r){if(!r.ok)throw 0}).catch(function(){document.getElementById('st').textContent='Le firmware n’est pas encore compilé : regarde l’onglet Actions du dépôt, ou réessaie dans quelques minutes.'})</script>
+</body></html>

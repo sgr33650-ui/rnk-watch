@@ -1,0 +1,1 @@
+Le firmware compilé est ajouté ici par GitHub Actions.
