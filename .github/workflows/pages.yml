@@ -33,10 +33,19 @@ jobs:
             exit 0
           fi
           B=.pio/build/twatch2020v3
+          P=~/.platformio/packages/framework-arduinoespressif32
           BOOT=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
-          if ! esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin --flash_mode dio --flash_size keep 0x1000 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin > ../merge.log 2>&1; then
-            echo "::error title=fusion::$(tail -c 900 ../merge.log | tr '\n' '|')"
+          BL=$(find $P/tools/sdk -name 'bootloader_dio_40m.bin' | head -1)
+          PT=$B/partitions.bin
+          if [ ! -f "$PT" ]; then
+            CSV=$(find $P/tools/partitions -name default.csv | head -1)
+            python3 $P/tools/gen_esp32part.py "$CSV" $B/partitions.bin > ../gen.log 2>&1 || echo "::error title=partitions::$(tail -c 600 ../gen.log | tr '\n' '|')"
           fi
+          echo "::notice title=fichiers::BL=$BL BOOT=$BOOT PT=$(ls $B/*.bin | tr '\n' ' ')"
+          if ! esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin --flash_mode dio --flash_size keep 0x1000 "$BL" 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin > ../merge.log 2>&1; then
+            echo "::error title=fusion::$(tail -c 700 ../merge.log | sed 's/\x1b\[[0-9;]*m//g' | tr '\n' '|')"
+          fi
+
       - name: Manifeste du firmware
         run: |
           mkdir -p docs/firmware
