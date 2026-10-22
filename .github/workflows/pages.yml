@@ -32,25 +32,30 @@ jobs:
             echo "::error title=fin du journal::$(tail -n 8 ../build.log | cut -c1-300 | tr '\n' '|')"
             exit 0
           fi
-          B=.pio/build/twatch2020v3
           P=~/.platformio/packages/framework-arduinoespressif32
           BOOT=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
           BL=$(find $P/tools/sdk -name 'bootloader_dio_40m.bin' | head -1)
-          PT=$B/partitions.bin
-          if [ ! -f "$PT" ]; then
-            CSV=$(find $P/tools/partitions -name default.csv | head -1)
-            python3 $P/tools/gen_esp32part.py "$CSV" $B/partitions.bin > ../gen.log 2>&1 || echo "::error title=partitions::$(tail -c 600 ../gen.log | tr '\n' '|')"
-          fi
-          echo "::notice title=fichiers::BL=$BL BOOT=$BOOT PT=$(ls $B/*.bin | tr '\n' ' ')"
-          if ! esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin --flash_mode dio --flash_size keep 0x1000 "$BL" 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin > ../merge.log 2>&1; then
-            echo "::error title=fusion::$(tail -c 700 ../merge.log | sed 's/\x1b\[[0-9;]*m//g' | tr '\n' '|')"
-          fi
+          for E in twatch2020v3 diag; do
+            B=.pio/build/$E
+            OUT=rnk-runtime.bin; [ "$E" = diag ] && OUT=diag.bin
+            if [ ! -f "$B/firmware.bin" ]; then echo "::error title=$E::pas de firmware.bin"; continue; fi
+            if [ ! -f "$B/partitions.bin" ]; then
+              CSV=$(find $P/tools/partitions -name default.csv | head -1)
+              python3 $P/tools/gen_esp32part.py "$CSV" $B/partitions.bin > ../gen.log 2>&1 || echo "::error title=partitions::$(tail -c 600 ../gen.log | tr '\n' '|')"
+            fi
+            if ! esptool.py --chip esp32 merge_bin -o ../docs/firmware/$OUT --flash_mode dio --flash_size keep 0x1000 "$BL" 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin > ../merge.log 2>&1; then
+              echo "::error title=fusion-$E::$(tail -c 700 ../merge.log | sed 's/\x1b\[[0-9;]*m//g' | tr '\n' '|')"
+            fi
+          done
 
       - name: Manifeste du firmware
         run: |
           mkdir -p docs/firmware
           if [ -f docs/firmware/rnk-runtime.bin ]; then
             echo '{"name":"RNK Runtime","version":"0.3.1","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"rnk-runtime.bin","offset":0}]}]}' > docs/firmware/manifest.json
+          fi
+          if [ -f docs/firmware/diag.bin ]; then
+            echo '{"name":"RNK Test","version":"diag","new_install_prompt_erase":false,"builds":[{"chipFamily":"ESP32","parts":[{"path":"diag.bin","offset":0}]}]}' > docs/firmware/manifest-diag.json
           else
             echo "Compilation du firmware échouée : pas de page d'installation."
           fi

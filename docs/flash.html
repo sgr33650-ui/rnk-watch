@@ -17,6 +17,8 @@ esp-web-install-button button{background:#c2383d;color:#fff;border:0;border-radi
 </ol>
 <esp-web-install-button manifest="firmware/manifest.json"><button slot="activate">Installer sur la montre</button><span slot="unsupported">Ce navigateur ne gère pas l'USB : utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button>
 </div>
+<div class="box"><b>Test de la montre</b><p>Si la montre reste noire, installe ce programme de test : l'écran doit devenir rouge avec « DIAG OK » et un compteur.</p>
+<esp-web-install-button manifest="firmware/manifest-diag.json"><button slot="activate">Installer le programme de test</button><span slot="unsupported">Utilise Chrome ou Edge sur ordinateur.</span><span slot="not-allowed">Ouvre cette page en https.</span></esp-web-install-button></div>
 <p>Ensuite, ouvre <a href="index.html">l'Atelier</a> pour envoyer un cadran.</p>
 <p id="st"></p>
 <script type="module" src="https://unpkg.com/esp-web-tools@10.0.1/dist/web/install-button.js?module"></script>
