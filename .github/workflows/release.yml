@@ -1,0 +1,26 @@
+name: Publier les fichiers (Releases)
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', '.github/workflows/release.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Préparer les fichiers
+        run: |
+          mkdir out
+          cp docs/index.html out/Atelier-RNK.html
+          cp docs/compagnon.html out/Compagnon-RNK.html
+          (cd docs && zip -qr ../out/site-complet.zip .)
+      - name: Publier dans « Releases »
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete derniere -y --cleanup-tag || true
+          gh release create derniere out/* --title "RNK Watch : dernière version" \
+            --notes "Atelier-RNK.html : l'éditeur de cadrans (ouvre-le dans Chrome ou Edge). Compagnon-RNK.html : page Bluetooth du téléphone. site-complet.zip : tout le site."
