@@ -32,8 +32,6 @@ jobs:
           esptool.py --chip esp32 merge_bin -o ../docs/firmware/rnk-runtime.bin \
             --flash_mode dio --flash_size keep \
             0x1000 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin
-        env:
-          PLATFORMIO_CORE_DIR: ~/.platformio
       - name: Manifeste du firmware
         run: |
           mkdir -p docs/firmware
