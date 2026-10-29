@@ -1,5 +1,5 @@
 /* Service worker : l'application fonctionne hors ligne après la première visite. */
-const VERSION = 'rnk-v11';
+const VERSION = 'rnk-v12';
 const SHELL = ['flash.html', './', 'index.html', 'compagnon.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

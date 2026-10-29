@@ -23,11 +23,11 @@
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
 
-#define FW_VERSION      "rnk-runtime-0.5.1"
+#define FW_VERSION      "rnk-runtime-0.6.0"
 #define AUTO_SLEEP      0           // 1 = extinction automatique sur batterie (désactivée par prudence)
 #define LAYOUT_PATH     "/layout.json"
 #define MAX_LAYOUT      (160 * 1024)
-#define SLEEP_AFTER_MS  30000UL     // extinction après inactivité, sur batterie uniquement
+#define SLEEP_AFTER_MS  20000UL     // extinction après inactivité, sur batterie uniquement
 #define RX_TIMEOUT_MS   8000UL
 #define MAX_PAGES       16
 #define SVC_UUID        "52a10001-8f4b-4c1e-9d6b-2f5a7c3e1b00"
@@ -70,7 +70,7 @@ int bgIdx = -1;
 int bgPrefix = 0;
 bool pageAnim[MAX_PAGES];   // page avec une image dont la couleur change : redessin rapide
 bool dirty = true;
-uint8_t brightness = 160;
+uint8_t brightness = 100;
 
 struct Theme { uint16_t bg, panel, accent, accent2, text, dim, track, line, metal; };
 
@@ -831,10 +831,19 @@ static void toggleApps() {
   if (!strcmp(pages[curPage]["kind"] | "", "appli")) gotoPage(lastCadran);
   else { int a = firstAppPage(); if (a >= 0) gotoPage(a); }
 }
+// Écran éteint : on coupe aussi le Bluetooth et on ralentit le processeur (économie d'énergie)
+static void screenOffNow() {
+  if (screenOff) return;
+  screenOff = true;
+  ttgo->closeBL();
+  ttgo->displaySleep();
+  bleStop();
+  setCpuFrequencyMhz(80);
+}
 static void doAction(const char *act, const char *target) {
   if (!strcmp(act, "goto")) gotoPage(findPageByName(target));
   else if (!strcmp(act, "bright")) { static const uint8_t lv[] = {40, 100, 160, 255}; int i = 0; while (i < 3 && lv[i] <= brightness) i++; brightness = lv[i]; ttgo->setBrightness(brightness); }
-  else if (!strcmp(act, "sleep")) { screenOff = true; ttgo->closeBL(); ttgo->displaySleep(); }
+  else if (!strcmp(act, "sleep")) screenOffNow();
   else if (!strcmp(act, "bt")) { if (bleOn) bleStop(); else bleStart(); }
   else if (!strcmp(act, "vibe")) {
 #ifdef LILYGO_WATCH_HAS_MOTOR
@@ -856,6 +865,8 @@ static void onTap(int x, int y) {
 static bool touching = false;
 static void wakeScreen() {
   screenOff = false;
+  setCpuFrequencyMhz(240);
+  bleStart();
   ttgo->displayWakeup();
   ttgo->openBL();
   ttgo->setBrightness(brightness);
@@ -998,7 +1009,7 @@ void loop() {
 
   // extinction automatique de l'écran sur batterie (réveil au toucher ou au bouton), sans veille profonde du processeur
   if (!D.usb && rx == RX_IDLE && !screenOff && millis() - lastActivity > SLEEP_AFTER_MS) {
-    screenOff = true; ttgo->closeBL(); ttgo->displaySleep();
+    screenOffNow();
   }
-  delay(4);
+  delay(screenOff ? 80 : 4);
 }
